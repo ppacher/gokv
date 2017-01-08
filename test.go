@@ -14,24 +14,24 @@ func KVTester(t *testing.T, kv KV) {
 func dirTests(t *testing.T, kv KV) {
 	ctx := context.Background()
 
-	if _, err := kv.Get(ctx, "/a/b/c"); err == nil {
+	if _, err := kv.Get(ctx, "/x/b/c"); err == nil {
 		t.Errorf("kv: (dir-tests) Get() of non-existent key did not return an error")
 	}
 
-	if node, _ := kv.Get(ctx, "/a/b/c"); node != nil {
+	if node, _ := kv.Get(ctx, "/x/b/c"); node != nil {
 		t.Errorf("kv: (dir-tests) Get() of non-existent key did return a node")
 	}
 
-	if err := kv.Delete(ctx, "/a/b/c"); err == nil {
+	if err := kv.Delete(ctx, "/x/b/c"); err == nil {
 		t.Errorf("kv: (dir-tests) Delete() of non-existent key should return an error")
 	}
 
-	if err := kv.Set(ctx, "/a", []byte("")); err != nil {
+	if err := kv.Set(ctx, "/a", []byte("test")); err != nil {
 		t.Errorf("kv: (dir-tests) Set() returned error: %s", err)
 	}
 
-	if err := kv.Set(ctx, "/a/b", []byte("")); err == nil {
-		t.Errorf("kv: (dir-tests) Set() should fail on /a/b as /a is a directory")
+	if err := kv.Set(ctx, "/a/b", []byte("test")); err == nil {
+		t.Errorf("kv: (dir-tests) Set() should fail on /a/b as /a is a file")
 	}
 
 	if err := kv.Delete(ctx, "/a"); err != nil {
