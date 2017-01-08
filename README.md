@@ -96,10 +96,10 @@ GLOBAL OPTIONS:
 The `gokv` cli includes basic PGP support. En/Decryption works but siging/verification
 is not yet implemented. In addition, keyring support is hacky..
 
-Encrypting your credit-card number for Bob and store it under /alice/credit-card
+Encrypting your credit-card number for Bob and Frank and store it under /alice/credit-card
 
 ```bash
-$ gokv set --encrypt-for /path/to/bob_pub.key /alice/credit-card "XXXX-XXXX-XXXX-XXXX"
+$ gokv set --encrypt-for /path/to/bob.pubkey --encrypt-for /path/to/frank.pubkey /alice/credit-card "XXXX-XXXX-XXXX-XXXX"
 ```
 
 Now, as Bob, I can get Alice credit-card number by issuing the following command:
