@@ -73,16 +73,24 @@ func Open(name string, params map[string]string) (KV, error) {
 	return provider.F(params)
 }
 
+// Provider represents a registered KV factory function
 type Provider struct {
-	F               Factory
+	// F holds the Factory func
+	F Factory
+
+	// RequiredOptions holds a list of option names that must be set in the map
+	// passed to F
 	RequiredOptions []string
+
+	// OptionalOptions holds a list of additional options.
 	OptionalOptions []string
 }
 
 var factories map[string]Provider
 var lock sync.Mutex
 
-func Factories() map[string]Provider {
+// Providers returns a list of registered KV providers
+func Providers() map[string]Provider {
 	res := make(map[string]Provider)
 
 	lock.Lock()

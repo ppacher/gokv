@@ -110,7 +110,7 @@ func pgpDecrypt(c *cli.Context, v string) (string, error) {
 }
 
 func getKV(c *cli.Context) (kv.KV, error) {
-	for name, provider := range kv.Factories() {
+	for name, provider := range kv.Providers() {
 		if c.Bool(name) {
 			params := make(map[string]string)
 
@@ -150,7 +150,7 @@ func main() {
 		},
 	}
 
-	for name, provider := range kv.Factories() {
+	for name, provider := range kv.Providers() {
 		flags := []cli.Flag{
 			&cli.BoolFlag{
 				Name:    name,
