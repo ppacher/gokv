@@ -47,11 +47,14 @@ func convertNode(n *client.Node) *kv.Node {
 			node.Children = append(node.Children, *convertNode(child))
 		}
 	} else {
-		val, err := base64.StdEncoding.DecodeString(n.Value)
-		if err != nil {
-			panic(err)
+		if n.Value != "" {
+			val, err := base64.StdEncoding.DecodeString(n.Value)
+			if err != nil {
+				node.Value = []byte(n.Value)
+			} else {
+				node.Value = []byte(val)
+			}
 		}
-		node.Value = []byte(val)
 	}
 	return node
 }
