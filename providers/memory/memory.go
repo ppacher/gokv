@@ -105,6 +105,15 @@ func (kv *KV) Get(ctx context.Context, key string) (*kv.Node, error) {
 	return convertNode(node), nil
 }
 
+func clear(node *Node) {
+	for _, child := range node.m {
+		clear(child)
+	}
+
+	node.m = nil
+	node.Children = nil
+}
+
 func (kv *KV) Delete(ctx context.Context, key string) error {
 	kv.lock.Lock()
 	defer kv.lock.Unlock()
@@ -129,6 +138,7 @@ func (kv *KV) Delete(ctx context.Context, key string) error {
 	for i, child := range node.m {
 		if child.Key == key {
 			node.m = append(node.m[:i], node.m[i+1:]...)
+			clear(child)
 			return nil
 		}
 	}
