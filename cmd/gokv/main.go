@@ -129,6 +129,49 @@ func getKV(c *cli.Context) (kv.KV, error) {
 	return nil, fmt.Errorf("no provider specified")
 }
 
+func printNode(c *cli.Context, n kv.Node) {
+	value := c.Bool("value")
+
+	if value {
+		fmt.Println(string(n.Value))
+		return
+	}
+
+	if !c.Bool("json") {
+		fmt.Println("key: ", n.Key)
+
+		fmt.Println("value: ", string(n.Value))
+
+		if n.IsDir {
+			childStr := ""
+
+			for _, c := range n.Children {
+				childStr += ", " + c.Key
+			}
+			childStr = childStr[0:]
+			fmt.Println("childs: ", childStr)
+		} else {
+			fmt.Println("childs: ")
+		}
+
+		fmt.Println("dir: ", n.IsDir)
+
+		for _, child := range n.Children {
+			fmt.Println("")
+			printNode(c, child)
+		}
+
+	} else {
+		json.NewEncoder(os.Stdout).Encode(struct {
+			kv.Node
+			Value string `json:"value, omitempty"`
+		}{
+			Node:  n,
+			Value: string(n.Value),
+		})
+	}
+}
+
 func main() {
 	app := cli.App{}
 	app.Name = "gokv"
@@ -182,9 +225,24 @@ func main() {
 		&cli.Command{
 			Name: "get",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:  "field",
-					Usage: "Only return the value of field f",
+				&cli.BoolFlag{
+					Name:  "key",
+					Usage: "Show result key",
+				},
+				&cli.BoolFlag{
+					Name:  "value",
+					Usage: "Only print the result value",
+				},
+
+				/* TODO
+				&cli.BoolFlag{
+					Name:  "recursive",
+					Usage: "Query recursively (only applies for directories)",
+				},
+				*/
+				&cli.BoolFlag{
+					Name:  "json",
+					Usage: "Display result as JSON",
 				},
 				&cli.BoolFlag{
 					Name:  "decrypt",
@@ -218,26 +276,7 @@ func main() {
 					res.Value = []byte(decrypted)
 				}
 
-				field := c.String("field")
-				if field == "" {
-					json.NewEncoder(os.Stdout).Encode(map[string]interface{}{
-						"value":  string(res.Value),
-						"dir":    res.IsDir,
-						"key":    res.Key,
-						"childs": res.Children,
-					})
-				} else {
-					switch field {
-					case "value":
-						os.Stdout.Write(res.Value)
-					case "key":
-						fmt.Println(res.Key)
-					case "childs":
-						json.NewEncoder(os.Stdout).Encode(res.Children)
-					case "dir":
-						json.NewEncoder(os.Stdout).Encode(res.IsDir)
-					}
-				}
+				printNode(c, *res)
 
 				return nil
 			},
