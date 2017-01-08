@@ -112,4 +112,9 @@ $ gokv get --json --decrypt /alice/credit-card
 }
 ```
 
+Instead of letting gokv decrypt the value, you can also rely on `gpg`:
+```bash
+$ gokv get --value /alice/credit-card | gpg -d
+```
+
 If your keyring is password protected, `gokv` will ask you on the terminal.
