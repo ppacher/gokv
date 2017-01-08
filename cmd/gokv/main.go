@@ -23,17 +23,31 @@ import (
 )
 
 func pgpEncrypt(c *cli.Context, v string) (string, error) {
-	from, err := os.Open(os.ExpandEnv(c.String("encrypt-for")))
-	defer from.Close()
+	//to, err := os.Open(os.ExpandEnv(c.String("encrypt-for")))
+	//defer to.Close()
 
-	entityList, err := openpgp.ReadArmoredKeyRing(from)
-	if err != nil {
-		return "", err
+	var recepients openpgp.EntityList
+
+	to := c.StringSlice("encrypt-for")
+
+	for _, p := range to {
+		if p[0] == '/' || p[0] == '.' {
+			f, err := os.Open(os.ExpandEnv(p))
+			defer f.Close()
+			// file path
+			r, err := openpgp.ReadArmoredKeyRing(f)
+			if err != nil {
+				return "", err
+			}
+
+			recepients = append(recepients, r...)
+		}
+		// TODO: add support to load from public keyring
 	}
 
 	out := new(bytes.Buffer)
 
-	encOut, err := openpgp.Encrypt(out, entityList, nil, nil, nil)
+	encOut, err := openpgp.Encrypt(out, recepients, nil, nil, nil)
 	if err != nil {
 		return "", err
 	}
@@ -306,7 +320,7 @@ func main() {
 			Name:  "set",
 			Usage: "Set a key",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
+				&cli.StringSliceFlag{
 					Name:  "encrypt-for, e",
 					Usage: "Path to PGP public key to encrypt for",
 				},
@@ -328,7 +342,7 @@ func main() {
 
 				value := c.Args().Get(1)
 
-				if c.String("encrypt-for") != "" {
+				if len(c.StringSlice("encrypt-for")) > 0 {
 					encrypted, err := pgpEncrypt(c, value)
 					if err != nil {
 						return err
