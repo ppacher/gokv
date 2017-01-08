@@ -22,7 +22,9 @@ In addition, support for **ZooKeeper**, **Redis**, **Memcache**, **cznic/kv**,
 package main
 
 import "fmt"
+import "context"
 import "github.com/nethack42/gokv"
+import _ "github.com/nethack42/gokv/providers/etcd"
 
 func main() {
     store, _ := kv.Open("etcd", map[string]string{
@@ -31,10 +33,11 @@ func main() {
 
     // store, _ := kv.Open("memory", nil)
 
-    store.Set("/a/b/c", "some-value")
+    ctx := context.Background()
 
-    val, _ := store.Get("/a/b")
+    store.Set(ctx, "/a/b/c", "some-value")
 
+    val, _ := store.Get(ctx, "/a/b")
 
     for _, child := range val.Children {
         prefix := "f"
@@ -45,7 +48,7 @@ func main() {
         fmt.Println(" - [%s] %s %s", prefix, key, child.Value)
     }
 
-    store.Delete("/a")
+    store.Delete(ctx, "/a")
 }
 ```
 
