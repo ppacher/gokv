@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -42,15 +43,17 @@ func main() {
 	for name, provider := range kv.Factories() {
 		flags := []cli.Flag{
 			&cli.BoolFlag{
-				Name:  name,
-				Usage: fmt.Sprintf("Enable %s Key-Value provider", name),
+				Name:    name,
+				Usage:   fmt.Sprintf("Enable %s Key-Value provider", name),
+				EnvVars: []string{"USE_" + strings.ToUpper(name)},
 			},
 		}
 
 		for _, key := range provider.Keys {
 			flags = append(flags, &cli.StringFlag{
-				Name:  fmt.Sprintf("%s-%s", name, key),
-				Usage: fmt.Sprintf("Configure %s for %s provider", key, name),
+				Name:    fmt.Sprintf("%s-%s", name, key),
+				Usage:   fmt.Sprintf("Configure %s for %s provider", key, name),
+				EnvVars: []string{fmt.Sprintf("%s_%s", strings.ToUpper(name), strings.ToUpper(key))},
 			})
 		}
 
