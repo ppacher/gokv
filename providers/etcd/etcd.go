@@ -1,6 +1,7 @@
 package etcd
 
 import (
+	"encoding/base64"
 	"strings"
 	"time"
 
@@ -46,7 +47,11 @@ func convertNode(n *client.Node) *kv.Node {
 			node.Children = append(node.Children, *convertNode(child))
 		}
 	} else {
-		node.Value = []byte(n.Value)
+		val, err := base64.StdEncoding.DecodeString(n.Value)
+		if err != nil {
+			panic(err)
+		}
+		node.Value = []byte(val)
 	}
 	return node
 }
