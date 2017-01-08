@@ -2,11 +2,12 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
+	"os/user"
 	"strings"
 
 	"golang.org/x/crypto/openpgp"
@@ -22,7 +23,7 @@ import (
 )
 
 func pgpEncrypt(c *cli.Context, v string) (string, error) {
-	from, err := os.Open(c.String("encrypt-for"))
+	from, err := os.Open(os.ExpandEnv(c.String("encrypt-for")))
 	defer from.Close()
 
 	entityList, err := openpgp.ReadArmoredKeyRing(from)
@@ -45,7 +46,7 @@ func pgpEncrypt(c *cli.Context, v string) (string, error) {
 		return "", err
 	}
 
-	return string(out.Bytes()), nil
+	return base64.StdEncoding.EncodeToString(out.Bytes()), nil
 }
 
 func pgpDecrypt(c *cli.Context, v string) (string, error) {
@@ -53,11 +54,7 @@ func pgpDecrypt(c *cli.Context, v string) (string, error) {
 	var entity *openpgp.Entity
 	var entityList openpgp.EntityList
 
-	var secretKeyring = c.String("pgp-secret-keyring")
-	passphrase, err := terminal.ReadPassword(0)
-	if err != nil {
-		return "", err
-	}
+	var secretKeyring = os.ExpandEnv(c.String("pgp-secret-keyring"))
 
 	// Open the private key file
 	keyringFileBuffer, err := os.Open(secretKeyring)
@@ -72,20 +69,32 @@ func pgpDecrypt(c *cli.Context, v string) (string, error) {
 	}
 	entity = entityList[0]
 
-	// Get the passphrase and read the private key.
-	// Have not touched the encrypted string yet
-	passphraseByte := []byte(passphrase)
-	log.Println("Decrypting private key using passphrase")
-	entity.PrivateKey.Decrypt(passphraseByte)
-	for _, subkey := range entity.Subkeys {
-		if subkey.PrivateKey.Encrypted {
-			subkey.PrivateKey.Decrypt(passphraseByte)
+	if entity.PrivateKey.Encrypted {
+		fmt.Println("Enter PGP Keyring passphrase: ")
+		passphrase, err := terminal.ReadPassword(0)
+		if err != nil {
+			return "", err
+		}
+
+		// Get the passphrase and read the private key.
+		// Have not touched the encrypted string yet
+		passphraseByte := []byte(passphrase)
+
+		entity.PrivateKey.Decrypt(passphraseByte)
+		for _, subkey := range entity.Subkeys {
+			if subkey.PrivateKey.Encrypted {
+				subkey.PrivateKey.Decrypt(passphraseByte)
+			}
 		}
 	}
-	log.Println("Finished decrypting private key using passphrase")
+
+	dec, err := base64.StdEncoding.DecodeString(v)
+	if err != nil {
+		return "", err
+	}
 
 	// Decrypt it with the contents of the private key
-	md, err := openpgp.ReadMessage(bytes.NewBuffer([]byte(v)), entityList, nil, nil)
+	md, err := openpgp.ReadMessage(bytes.NewBuffer(dec), entityList, nil, nil)
 	if err != nil {
 		return "", err
 
@@ -121,26 +130,19 @@ func main() {
 	app.Name = "gokv"
 	app.Usage = "GoKV is a generic Key-Value client"
 
+	usr, _ := user.Current()
+	dir := usr.HomeDir
+
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:  "pgp-secret-keyring, k",
 			Usage: "Path to PGP secret keyring used for decryption and signing",
+			Value: dir + "/.gnupg/secring.gpg",
 		},
 		&cli.StringFlag{
 			Name:  "pgp-public-keyring, K",
 			Usage: "Path to PGP public keyring used for encryption and signature verification",
-		},
-		&cli.StringFlag{
-			Name:  "encrypt-for, e",
-			Usage: "Path to PGP public key to encrypt for",
-		},
-		&cli.BoolFlag{
-			Name:  "sign, s",
-			Usage: "Sign value. Only works with --encrypt-for",
-		},
-		&cli.BoolFlag{
-			Name:  "decrypt, d",
-			Usage: "PGP decrypt value",
+			Value: dir + "/.gnupg/pubring.gpg",
 		},
 	}
 
@@ -169,8 +171,12 @@ func main() {
 			Name: "get",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "field, f",
+					Name:  "field",
 					Usage: "Only return the value of field f",
+				},
+				&cli.BoolFlag{
+					Name:  "decrypt",
+					Usage: "PGP decrypt value",
 				},
 			},
 
@@ -200,22 +206,24 @@ func main() {
 					res.Value = []byte(decrypted)
 				}
 
-				buf := new(bytes.Buffer)
-				json.NewEncoder(buf).Encode(res)
-
 				field := c.String("field")
 				if field == "" {
-					os.Stdout.Write(buf.Bytes())
+					json.NewEncoder(os.Stdout).Encode(map[string]interface{}{
+						"value":  string(res.Value),
+						"dir":    res.IsDir,
+						"key":    res.Key,
+						"childs": res.Children,
+					})
 				} else {
-					obj := make(map[string]interface{})
-
-					json.Unmarshal(buf.Bytes(), &obj)
-
-					switch obj[field].(type) {
-					case string:
-						fmt.Println(obj[field])
-					default:
-						json.NewEncoder(os.Stdout).Encode(obj[field])
+					switch field {
+					case "value":
+						os.Stdout.Write(res.Value)
+					case "key":
+						fmt.Println(res.Key)
+					case "childs":
+						json.NewEncoder(os.Stdout).Encode(res.Children)
+					case "dir":
+						json.NewEncoder(os.Stdout).Encode(res.IsDir)
 					}
 				}
 
@@ -246,6 +254,16 @@ func main() {
 		&cli.Command{
 			Name:  "set",
 			Usage: "Set a key",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:  "encrypt-for, e",
+					Usage: "Path to PGP public key to encrypt for",
+				},
+				&cli.BoolFlag{
+					Name:  "sign, s",
+					Usage: "Sign value. Only works with --encrypt-for",
+				},
+			},
 			Action: func(c *cli.Context) error {
 				kv, err := getKV(c)
 				if err != nil {
