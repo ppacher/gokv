@@ -55,7 +55,16 @@ func sanatizePath(path string) string {
 
 func (e *KV) Delete(ctx context.Context, key string) error {
 	key = sanatizePath(key)
-	_, err := e.store.Delete(ctx, key, nil)
+
+	node, err := e.Get(ctx, key)
+	if err != nil {
+		return err
+	}
+
+	_, err = e.store.Delete(ctx, key, &client.DeleteOptions{
+		Dir:       node.IsDir,
+		Recursive: true,
+	})
 	return err
 }
 

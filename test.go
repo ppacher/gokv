@@ -26,6 +26,8 @@ func dirTests(t *testing.T, kv KV) {
 		t.Errorf("kv: (dir-tests) Delete() of non-existent key should return an error")
 	}
 
+	kv.Delete(ctx, "/a")
+
 	if err := kv.Set(ctx, "/a", []byte("test")); err != nil {
 		t.Errorf("kv: (dir-tests) Set() returned error: %s", err)
 	}
