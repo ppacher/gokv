@@ -21,6 +21,7 @@ In addition, support for **ZooKeeper**, **Redis**, **Memcache**, **cznic/kv**,
 ```golang
 package main
 
+import "fmt"
 import "github.com/nethack42/gokv"
 
 func main() {
@@ -41,7 +42,7 @@ func main() {
             prefix = "d" 
         }
 
-        fmt.Printl(" - [%s] %s %s", prefix, key, child.Value)
+        fmt.Println(" - [%s] %s %s", prefix, key, child.Value)
     }
 
     store.Delete("/a")
