@@ -4,6 +4,7 @@ package kv
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"golang.org/x/net/context"
@@ -12,25 +13,25 @@ import (
 // Node represents an entry within the KV store.
 type Node struct {
 	// Key holds the absolute key for this node
-	Key string
+	Key string `json:"key"`
 
 	// IsDir is true if the current node represents a directory
-	IsDir bool
+	IsDir bool `json:"dir,omitempty"`
 
 	// Children holds a list of child nodes. This field is only valid if IsDir
 	// is set to true
-	Children []Node
+	Children []Node `json:"childs,omitempty"`
 
 	// Created stores the time the node has been created. This field is optional
-	Created *time.Time
+	Created *time.Time `json:"created,omitempty"`
 
 	// Updated stores the time the node has been updated last. This field is
 	// optional
-	Updated *time.Time
+	Updated *time.Time `json:"updated,omitempty"`
 
 	// Value holds the value of the node, if any. This field is only valid if
 	// IsDir is set to false
-	Value []byte
+	Value []byte `json:"value,omitempty"`
 }
 
 // KV wraps Key-Value store providers
@@ -53,12 +54,60 @@ type Factory func(map[string]string) (KV, error)
 
 // Open opens a new instance to a KV provider identified by name and configured
 // with params
-func Open(name string, params interface{}) (KV, error) {
-	return nil, fmt.Errorf("not yet implemented")
+func Open(name string, params map[string]string) (KV, error) {
+	lock.Lock()
+	defer lock.Unlock()
+
+	provider, ok := factories[name]
+
+	if !ok {
+		return nil, fmt.Errorf("unkown provider")
+	}
+
+	for _, key := range provider.Keys {
+		if v, ok := params[key]; !ok || v == "" {
+			return nil, fmt.Errorf("missing mandatory config key: %s", key)
+		}
+	}
+
+	return provider.F(params)
+}
+
+type Provider struct {
+	F    Factory
+	Keys []string
+}
+
+var factories map[string]Provider
+var lock sync.Mutex
+
+func Factories() map[string]Provider {
+	res := make(map[string]Provider)
+
+	lock.Lock()
+	defer lock.Unlock()
+
+	for name, p := range factories {
+		res[name] = p
+	}
+
+	return res
 }
 
 // Register registers a new factory function fn using name. One can pass
 // additional strings representing required configuration map keys
 func Register(name string, fn Factory, opts ...string) error {
+	lock.Lock()
+	defer lock.Unlock()
+
+	if factories == nil {
+		factories = make(map[string]Provider)
+	}
+
+	factories[name] = Provider{
+		F:    fn,
+		Keys: opts,
+	}
+
 	return nil
 }

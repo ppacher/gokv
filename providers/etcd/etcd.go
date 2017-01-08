@@ -23,7 +23,9 @@ func (e *KV) Set(ctx context.Context, key string, value []byte) error {
 
 func (e *KV) Get(ctx context.Context, key string) (*kv.Node, error) {
 	key = sanatizePath(key)
-	node, err := e.store.Get(ctx, key, nil)
+	node, err := e.store.Get(ctx, key, &client.GetOptions{
+		Recursive: true,
+	})
 	if err != nil {
 		return nil, err
 	}
