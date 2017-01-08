@@ -158,7 +158,7 @@ func New(params map[string]string) (kv.KV, error) {
 }
 
 func init() {
-	if err := kv.Register("memory", New); err != nil {
+	if err := kv.Register("memory", New, nil, nil); err != nil {
 		panic("failed to register memory KV driver")
 	}
 }

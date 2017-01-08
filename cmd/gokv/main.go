@@ -114,7 +114,11 @@ func getKV(c *cli.Context) (kv.KV, error) {
 		if c.Bool(name) {
 			params := make(map[string]string)
 
-			for _, key := range provider.Keys {
+			for _, key := range provider.RequiredOptions {
+				params[key] = c.String(fmt.Sprintf("%s-%s", name, key))
+			}
+
+			for _, key := range provider.OptionalOptions {
 				params[key] = c.String(fmt.Sprintf("%s-%s", name, key))
 			}
 
@@ -155,10 +159,18 @@ func main() {
 			},
 		}
 
-		for _, key := range provider.Keys {
+		for _, key := range provider.RequiredOptions {
 			flags = append(flags, &cli.StringFlag{
 				Name:    fmt.Sprintf("%s-%s", name, key),
 				Usage:   fmt.Sprintf("Configure %s for %s provider", key, name),
+				EnvVars: []string{fmt.Sprintf("%s_%s", strings.ToUpper(name), strings.ToUpper(key))},
+			})
+		}
+
+		for _, key := range provider.OptionalOptions {
+			flags = append(flags, &cli.StringFlag{
+				Name:    fmt.Sprintf("%s-%s", name, key),
+				Usage:   fmt.Sprintf("Configure %s for %s provider (optional)", key, name),
 				EnvVars: []string{fmt.Sprintf("%s_%s", strings.ToUpper(name), strings.ToUpper(key))},
 			})
 		}

@@ -64,7 +64,7 @@ func Open(name string, params map[string]string) (KV, error) {
 		return nil, fmt.Errorf("unkown provider")
 	}
 
-	for _, key := range provider.Keys {
+	for _, key := range provider.RequiredOptions {
 		if v, ok := params[key]; !ok || v == "" {
 			return nil, fmt.Errorf("missing mandatory config key: %s", key)
 		}
@@ -74,8 +74,9 @@ func Open(name string, params map[string]string) (KV, error) {
 }
 
 type Provider struct {
-	F    Factory
-	Keys []string
+	F               Factory
+	RequiredOptions []string
+	OptionalOptions []string
 }
 
 var factories map[string]Provider
@@ -96,7 +97,7 @@ func Factories() map[string]Provider {
 
 // Register registers a new factory function fn using name. One can pass
 // additional strings representing required configuration map keys
-func Register(name string, fn Factory, opts ...string) error {
+func Register(name string, fn Factory, required []string, optional []string) error {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -105,8 +106,9 @@ func Register(name string, fn Factory, opts ...string) error {
 	}
 
 	factories[name] = Provider{
-		F:    fn,
-		Keys: opts,
+		F:               fn,
+		RequiredOptions: required,
+		OptionalOptions: optional,
 	}
 
 	return nil

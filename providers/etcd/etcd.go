@@ -96,5 +96,5 @@ func New(params map[string]string) (kv.KV, error) {
 }
 
 func init() {
-	kv.Register("etcd", New, "endpoints")
+	kv.Register("etcd", New, []string{"endpoints"}, nil)
 }
