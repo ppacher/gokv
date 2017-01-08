@@ -189,6 +189,7 @@ func printNode(c *cli.Context, n kv.Node) {
 func main() {
 	app := cli.App{}
 	app.Name = "gokv"
+	app.Version = "0.1.0"
 	app.Usage = "GoKV is a generic Key-Value client"
 
 	usr, _ := user.Current()
