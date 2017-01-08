@@ -9,7 +9,7 @@ regardless of the underlying KV provider. It is designed similar to Golang's
 
 At the moment, the following backend providers are supported:
 
-- **etcd**
+- **[etcd](providers/etcd/README.md)**
 - **memory** *temporary in-memory KV storage*
 - **consul** *partial; work-in-progress*
 
