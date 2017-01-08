@@ -1,27 +1,52 @@
 # gokv
 
-`gokv` is a generic Key-Value library similar to GoLang's `sql`. It provides an
-abstraction layer to interact with various Key-Value stores. Due to it's desing,
-only basic KV operations (Set, Get, Delete, CompareAndSwap) are supported.
+**gokv** provides a generic access layer for various Key-Value databases including
+**etcd**, **consul** and many more. Adding support for new KV databases is easy.
 
-`gokv` is allows to integrate support for various Key-Values stores by just using
-this package. It can be used for service discovery, configuration and much more.
+**gokv** is meant to be used for configuration backends or service discovery 
+regardless of the underlying KV provider. It is designed similar to Golang's
+`database/sql`. 
 
-For now, only basic Key-Value operations are supported but more enhanced wrappers
-for like service discovery or PGP encryption are planned.
+At the moment, the following backend providers are supported:
 
-## Providers
+- **etcd**
+- **memory** *temporary in-memory KV storage*
+- **consul** *partial; work-in-progress*
 
-Currently the following KV providers are supported:
+In addition, support for **ZooKeeper**, **Redis**, **Memcache**, **cznic/kv**,
+**bolt** and **tiedot** is planned.
 
- - etcd
- - temporary in-memory KV map
+## Usage
 
-Support for the following providers is planned:
+```golang
+package main
 
- - redis
- - consul
- - zookeeper
+import "github.com/nethack42/gokv"
+
+func main() {
+    store, _ := kv.Open("etcd", map[string]string{
+        "endpoints": "http://localhost:4001",
+    })
+
+    // store, _ := kv.Open("memory", nil)
+
+    store.Set("/a/b/c", "some-value")
+
+    val, _ := store.Get("/a/b")
+
+
+    for _, child := range val.Children {
+        prefix := "f"
+        if child.IsDir {
+            prefix = "d" 
+        }
+
+        fmt.Printl(" - [%s] %s %s", prefix, key, child.Value)
+    }
+
+    store.Delete("/a")
+}
+```
 
 ## Commandline Client
 
