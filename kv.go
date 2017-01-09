@@ -34,8 +34,12 @@ type Node struct {
 	Value []byte `json:"value,omitempty"`
 }
 
-// KV wraps Key-Value store providers
-type KV interface {
+// Provider wraps databases providing basic KV operations. Users developing new
+// providers must at least implement the Provider interface.
+// Other interfaces (defined below) may be implemented by the provider itself.
+// If they are not satisfied, a wrapper around basic KV operations is used to
+// implement the same behaviour
+type Provider interface {
 	// Get retrieves the Node stored under path
 	Get(context.Context, string) (*Node, error)
 
@@ -49,8 +53,52 @@ type KV interface {
 	CAS(context.Context, string, []byte, []byte) error
 }
 
+// KV wraps Key-Value databases and provides more enhanced access methods
+type KV interface {
+	// Provider provides basic KV operations
+	Provider
+
+	// RecursiveGetter allows to retrieve nodes recursively
+	RecursiveGetter
+
+	// KeyWatcher allows to watch a key for changes
+	KeyWatcher
+
+	// FileOps provides some file-like functionality like Copy or Move
+	FileOps
+}
+
+// RecursiveGetter allows to retrieve nodes recursively
+type RecursiveGetter interface {
+	RGet(context.Context, string) (*Node, error)
+}
+
+// KeyWatcher allows to watch a key for changes
+type KeyWatcher interface {
+	Watch(context.Context, string) (*Node, error)
+}
+
+// Mover supports moving a key or sub-tree to a different location
+type Mover interface {
+	Move(context.Context, string, string) error
+}
+
+// Copier supports copying a key or sub-tree to a different location
+type Copier interface {
+	Copy(context.Context, string, string) error
+}
+
+// FileOps provides some file-like functionality like Copy or Move
+type FileOps interface {
+	// Mover supports moving a key or sub-tree to a different location
+	Mover
+
+	// Copier supports copying a key or sub-tree to a different location
+	Copier
+}
+
 // Factory defines a factory function for KV providers
-type Factory func(map[string]string) (KV, error)
+type Factory func(map[string]string) (Provider, error)
 
 // Open opens a new instance to a KV provider identified by name and configured
 // with params
@@ -70,11 +118,16 @@ func Open(name string, params map[string]string) (KV, error) {
 		}
 	}
 
-	return provider.F(params)
+	k, err := provider.F(params)
+	if err != nil {
+		return nil, err
+	}
+
+	return &wrapper{k}, nil
 }
 
-// Provider represents a registered KV factory function
-type Provider struct {
+// ProviderEntry represents a registered KV factory function
+type ProviderEntry struct {
 	// F holds the Factory func
 	F Factory
 
@@ -86,12 +139,12 @@ type Provider struct {
 	OptionalOptions []string
 }
 
-var factories map[string]Provider
+var factories map[string]ProviderEntry
 var lock sync.Mutex
 
 // Providers returns a list of registered KV providers
-func Providers() map[string]Provider {
-	res := make(map[string]Provider)
+func Providers() map[string]ProviderEntry {
+	res := make(map[string]ProviderEntry)
 
 	lock.Lock()
 	defer lock.Unlock()
@@ -110,10 +163,10 @@ func Register(name string, fn Factory, required []string, optional []string) err
 	defer lock.Unlock()
 
 	if factories == nil {
-		factories = make(map[string]Provider)
+		factories = make(map[string]ProviderEntry)
 	}
 
-	factories[name] = Provider{
+	factories[name] = ProviderEntry{
 		F:               fn,
 		RequiredOptions: required,
 		OptionalOptions: optional,

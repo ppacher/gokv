@@ -1,4 +1,4 @@
 pgp.secret
 pgp.public
 pub.asc
-gokv
+./gokv

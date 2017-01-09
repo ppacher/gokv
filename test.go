@@ -6,12 +6,16 @@ import (
 	"golang.org/x/net/context"
 )
 
-func KVTester(t *testing.T, kv KV) {
+func KVTester(t *testing.T, kv Provider) {
+	RunProviderTests(t, kv)
+}
+
+func RunProviderTests(t *testing.T, kv Provider) {
 	flatTests(t, kv)
 	dirTests(t, kv)
 }
 
-func dirTests(t *testing.T, kv KV) {
+func dirTests(t *testing.T, kv Provider) {
 	ctx := context.Background()
 
 	if _, err := kv.Get(ctx, "/x/b/c"); err == nil {
@@ -149,7 +153,7 @@ func dirTests(t *testing.T, kv KV) {
 	}
 }
 
-func flatTests(t *testing.T, kv KV) {
+func flatTests(t *testing.T, kv Provider) {
 	ctx := context.Background()
 
 	// Get Non-Existent keys

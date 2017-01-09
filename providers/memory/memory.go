@@ -93,16 +93,38 @@ func convertNode(n *Node) *kv.Node {
 	return &res
 }
 
-func (kv *KV) Get(ctx context.Context, key string) (*kv.Node, error) {
-	kv.lock.RLock()
-	defer kv.lock.RUnlock()
+func (k *KV) get(ctx context.Context, key string, recurse bool) (*kv.Node, error) {
+	k.lock.RLock()
+	defer k.lock.RUnlock()
 
-	node, err := kv.resolvePath(key, false)
+	node, err := k.resolvePath(key, false)
 	if err != nil {
 		return nil, err
 	}
 
+	if !recurse {
+		// If we should have searched without recursion, simulate it by removing
+		// references from childs
+		var childs []kv.Node
+
+		for _, c := range node.Children {
+			c.Children = nil
+
+			childs = append(childs, c)
+		}
+
+		node.Children = childs
+	}
+
 	return convertNode(node), nil
+}
+
+func (kv *KV) Get(ctx context.Context, key string) (*kv.Node, error) {
+	return kv.get(ctx, key, false)
+}
+
+func (kv *KV) RGet(ctx context.Context, key string) (*kv.Node, error) {
+	return kv.get(ctx, key, true)
 }
 
 func clear(node *Node) {
@@ -153,7 +175,7 @@ func (kv *KV) CAS(ctx context.Context, key string, compare, value []byte) error 
 	return nil
 }
 
-func New(params map[string]string) (kv.KV, error) {
+func New(params map[string]string) (kv.Provider, error) {
 	return &KV{}, nil
 }
 

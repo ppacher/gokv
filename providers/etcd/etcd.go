@@ -21,10 +21,10 @@ func (e *KV) Set(ctx context.Context, key string, value []byte) error {
 	return err
 }
 
-func (e *KV) Get(ctx context.Context, key string) (*kv.Node, error) {
+func (e *KV) get(ctx context.Context, key string, recursive bool) (*kv.Node, error) {
 	key = sanatizePath(key)
 	node, err := e.store.Get(ctx, key, &client.GetOptions{
-		Recursive: true,
+		Recursive: recursive,
 	})
 	if err != nil {
 		return nil, err
@@ -33,6 +33,14 @@ func (e *KV) Get(ctx context.Context, key string) (*kv.Node, error) {
 	res := convertNode(node.Node)
 
 	return res, nil
+}
+
+func (e *KV) Get(ctx context.Context, key string) (*kv.Node, error) {
+	return e.get(ctx, key, false)
+}
+
+func (e *KV) RGet(ctx context.Context, key string) (*kv.Node, error) {
+	return e.get(ctx, key, true)
 }
 
 func convertNode(n *client.Node) *kv.Node {
@@ -76,7 +84,7 @@ func (e *KV) CAS(ctx context.Context, key string, compar, value []byte) error {
 	return nil
 }
 
-func New(params map[string]string) (kv.KV, error) {
+func New(params map[string]string) (kv.Provider, error) {
 	cli, err := client.New(client.Config{
 		Endpoints:               strings.Split(params["endpoints"], ","),
 		Transport:               client.DefaultTransport,

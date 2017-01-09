@@ -1,17 +1,12 @@
 package main
 
 import (
-	"bytes"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/user"
 	"strings"
 
-	"golang.org/x/crypto/openpgp"
-	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/net/context"
 
 	"github.com/nethack42/gokv"
@@ -21,107 +16,6 @@ import (
 
 	"gopkg.in/urfave/cli.v2"
 )
-
-func pgpEncrypt(c *cli.Context, v string) (string, error) {
-	//to, err := os.Open(os.ExpandEnv(c.String("encrypt-for")))
-	//defer to.Close()
-
-	var recepients openpgp.EntityList
-
-	to := c.StringSlice("encrypt-for")
-
-	for _, p := range to {
-		if p[0] == '/' || p[0] == '.' {
-			f, err := os.Open(os.ExpandEnv(p))
-			defer f.Close()
-			// file path
-			r, err := openpgp.ReadArmoredKeyRing(f)
-			if err != nil {
-				return "", err
-			}
-
-			recepients = append(recepients, r...)
-		}
-		// TODO: add support to load from public keyring
-	}
-
-	out := new(bytes.Buffer)
-
-	encOut, err := openpgp.Encrypt(out, recepients, nil, nil, nil)
-	if err != nil {
-		return "", err
-	}
-
-	if _, err := encOut.Write([]byte(v)); err != nil {
-		return "", err
-	}
-
-	if err := encOut.Close(); err != nil {
-		return "", err
-	}
-
-	return base64.StdEncoding.EncodeToString(out.Bytes()), nil
-}
-
-func pgpDecrypt(c *cli.Context, v string) (string, error) {
-	// init some vars
-	var entity *openpgp.Entity
-	var entityList openpgp.EntityList
-
-	var secretKeyring = os.ExpandEnv(c.String("pgp-secret-keyring"))
-
-	// Open the private key file
-	keyringFileBuffer, err := os.Open(secretKeyring)
-	if err != nil {
-		return "", err
-	}
-	defer keyringFileBuffer.Close()
-	entityList, err = openpgp.ReadKeyRing(keyringFileBuffer)
-	if err != nil {
-		return "", err
-
-	}
-	entity = entityList[0]
-
-	if entity.PrivateKey.Encrypted {
-		fmt.Println("Enter PGP Keyring passphrase: ")
-		passphrase, err := terminal.ReadPassword(0)
-		if err != nil {
-			return "", err
-		}
-
-		// Get the passphrase and read the private key.
-		// Have not touched the encrypted string yet
-		passphraseByte := []byte(passphrase)
-
-		entity.PrivateKey.Decrypt(passphraseByte)
-		for _, subkey := range entity.Subkeys {
-			if subkey.PrivateKey.Encrypted {
-				subkey.PrivateKey.Decrypt(passphraseByte)
-			}
-		}
-	}
-
-	dec, err := base64.StdEncoding.DecodeString(v)
-	if err != nil {
-		return "", err
-	}
-
-	// Decrypt it with the contents of the private key
-	md, err := openpgp.ReadMessage(bytes.NewBuffer(dec), entityList, nil, nil)
-	if err != nil {
-		return "", err
-
-	}
-	bytes, err := ioutil.ReadAll(md.UnverifiedBody)
-	if err != nil {
-		return "", err
-
-	}
-	decStr := string(bytes)
-
-	return decStr, nil
-}
 
 func getKV(c *cli.Context) (kv.KV, error) {
 	for name, provider := range kv.Providers() {
@@ -143,69 +37,43 @@ func getKV(c *cli.Context) (kv.KV, error) {
 	return nil, fmt.Errorf("no provider specified")
 }
 
-func printNode(c *cli.Context, n kv.Node) {
-	value := c.Bool("value")
-
-	if value {
-		fmt.Println(string(n.Value))
-		return
-	}
-
-	if !c.Bool("json") {
-		fmt.Println("key: ", n.Key)
-
-		fmt.Println("value: ", string(n.Value))
-
-		if n.IsDir {
-			childStr := ""
-
-			for _, c := range n.Children {
-				childStr += ", " + c.Key
-			}
-			childStr = childStr[0:]
-			fmt.Println("childs: ", childStr)
-		} else {
-			fmt.Println("childs: ")
-		}
-
-		fmt.Println("dir: ", n.IsDir)
-
-		for _, child := range n.Children {
-			fmt.Println("")
-			printNode(c, child)
-		}
-
-	} else {
-		json.NewEncoder(os.Stdout).Encode(struct {
-			kv.Node
-			Value string `json:"value, omitempty"`
-		}{
-			Node:  n,
-			Value: string(n.Value),
-		})
-	}
-}
+var Result interface{}
 
 func main() {
 	app := cli.App{}
 	app.Name = "gokv"
-	app.Version = "0.1.0"
-	app.Usage = "GoKV is a generic Key-Value client"
+	app.Version = "0.2.0"
+	app.Usage = "A batteries included client to access various Key-Value stores"
+	app.Authors = []*cli.Author{
+		&cli.Author{
+			Name:  "Patrick Pacher",
+			Email: "patrick.pacher@gmail.com",
+		},
+	}
 
 	usr, _ := user.Current()
 	dir := usr.HomeDir
 
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
-			Name:  "pgp-secret-keyring, k",
-			Usage: "Path to PGP secret keyring used for decryption and signing",
-			Value: dir + "/.gnupg/secring.gpg",
+			Name:    "pgp-sec-ring",
+			Aliases: []string{"K"},
+			Usage:   "Path to PGP secret keyring used for decryption and signing",
+			Value:   dir + "/.gnupg/secring.gpg",
 		},
 		&cli.StringFlag{
-			Name:  "pgp-public-keyring, K",
-			Usage: "Path to PGP public keyring used for encryption and signature verification",
-			Value: dir + "/.gnupg/pubring.gpg",
+			Name:    "pgp-pub-ring",
+			Aliases: []string{"k"},
+			Usage:   "Path to PGP public keyring used for encryption and signature verification",
+			Value:   dir + "/.gnupg/pubring.gpg",
 		},
+	}
+
+	app.After = func(c *cli.Context) error {
+		if Result != nil {
+			return routeOutput(c, Result)
+		}
+		return nil
 	}
 
 	for name, provider := range kv.Providers() {
@@ -236,38 +104,27 @@ func main() {
 		app.Flags = append(app.Flags, flags...)
 	}
 
+	app.Flags = append(app.Flags, outputFlags()...)
+
 	app.Commands = []*cli.Command{
 		&cli.Command{
 			Name: "get",
 			Flags: []cli.Flag{
 				&cli.BoolFlag{
-					Name:  "key",
-					Usage: "Show result key",
+					Name:    "recursive",
+					Aliases: []string{"R"},
+					Usage:   "Query recursively (only applies for directories)",
 				},
 				&cli.BoolFlag{
-					Name:  "value",
-					Usage: "Only print the result value",
-				},
-
-				/* TODO
-				&cli.BoolFlag{
-					Name:  "recursive",
-					Usage: "Query recursively (only applies for directories)",
-				},
-				*/
-				&cli.BoolFlag{
-					Name:  "json",
-					Usage: "Display result as JSON",
-				},
-				&cli.BoolFlag{
-					Name:  "decrypt",
-					Usage: "PGP decrypt value",
+					Name:    "decrypt",
+					Aliases: []string{"d"},
+					Usage:   "Try to decrypt the node's value using PGP secret keyring",
 				},
 			},
 
 			Usage: "Get a key",
 			Action: func(c *cli.Context) error {
-				kv, err := getKV(c)
+				k, err := getKV(c)
 				if err != nil {
 					return err
 				}
@@ -277,7 +134,14 @@ func main() {
 					key = "/"
 				}
 
-				res, err := kv.Get(context.Background(), key)
+				var res *kv.Node
+
+				if !c.Bool("recursive") {
+					res, err = k.Get(context.Background(), key)
+				} else {
+					res, err = k.RGet(context.Background(), key)
+				}
+
 				if err != nil {
 					return err
 				}
@@ -291,14 +155,15 @@ func main() {
 					res.Value = []byte(decrypted)
 				}
 
-				printNode(c, *res)
+				Result = *res
 
 				return nil
 			},
 		},
 		&cli.Command{
-			Name:  "delete",
-			Usage: "Delete a key",
+			Name:    "delete",
+			Usage:   "Delete a key",
+			Aliases: []string{"del", "rm"},
 			Action: func(c *cli.Context) error {
 				kv, err := getKV(c)
 				if err != nil {
@@ -318,16 +183,24 @@ func main() {
 			},
 		},
 		&cli.Command{
-			Name:  "set",
-			Usage: "Set a key",
+			Name:    "set",
+			Usage:   "Set a key",
+			Aliases: []string{"put"},
 			Flags: []cli.Flag{
 				&cli.StringSliceFlag{
-					Name:  "encrypt-for, e",
-					Usage: "Path to PGP public key to encrypt for",
+					Name:    "encrypt-for",
+					Aliases: []string{"e"},
+					Usage:   "Path to PGP public key to encrypt for",
 				},
 				&cli.BoolFlag{
-					Name:  "sign, s",
-					Usage: "Sign value. Only works with --encrypt-for",
+					Name:    "sign",
+					Aliases: []string{"s"},
+					Usage:   "Sign value. Only works with --encrypt-for",
+				},
+				&cli.StringFlag{
+					Name:    "file",
+					Aliases: []string{"f"},
+					Usage:   "Read value from file instead of using commandline parameters. Pass - for stdin",
 				},
 			},
 			Action: func(c *cli.Context) error {
@@ -341,7 +214,32 @@ func main() {
 					key = "/"
 				}
 
-				value := c.Args().Get(1)
+				var value string
+
+				if c.String("file") != "" {
+					path := c.String("file")
+					var f *os.File
+
+					if path == "-" {
+						f = os.Stdin
+					} else {
+						f_, err := os.Open(path)
+						if err != nil {
+							return err
+						}
+
+						f = f_
+					}
+
+					v, err := ioutil.ReadAll(f)
+					if err != nil {
+						return err
+					}
+
+					value = string(v)
+				} else {
+					value = c.Args().Get(1)
+				}
 
 				if len(c.StringSlice("encrypt-for")) > 0 {
 					encrypted, err := pgpEncrypt(c, value)
@@ -357,6 +255,54 @@ func main() {
 					return err
 				}
 				return nil
+			},
+		},
+
+		&cli.Command{
+			Name:    "move",
+			Aliases: []string{"mv"},
+			Usage:   "Move a key or subtree to a differnt location",
+		},
+		&cli.Command{
+			Name:    "copy",
+			Aliases: []string{"cp"},
+			Usage:   "Copy a key or subtree to a new location",
+		},
+
+		&cli.Command{
+			Name:  "proxy",
+			Usage: "Launch HTTP API proxy with integrated WebUI",
+		},
+
+		&cli.Command{
+			Name:    "dump",
+			Aliases: []string{"backup"},
+			Usage:   "Recursively dump a subtree to file using JSON.",
+			Action:  backupTree,
+			Flags: []cli.Flag{
+				&cli.BoolFlag{
+					Name:    "rel",
+					Aliases: []string{"r"},
+				},
+				&cli.StringFlag{
+					Name:    "output",
+					Aliases: []string{"o"},
+				},
+			},
+		},
+		&cli.Command{
+			Name:   "restore",
+			Usage:  "Restores a subtree from a JSON file.",
+			Action: restoreTree,
+			Flags: []cli.Flag{
+				&cli.BoolFlag{
+					Name:    "rel",
+					Aliases: []string{"r"},
+				},
+				&cli.StringFlag{
+					Name:    "input",
+					Aliases: []string{"i"},
+				},
 			},
 		},
 	}

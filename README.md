@@ -5,7 +5,8 @@
 
 **gokv** is meant to be used for configuration backends or service discovery 
 regardless of the underlying KV provider. It is designed similar to Golang's
-`database/sql`. 
+`database/sql`. It is both, a [library](#Library-Usage) as 
+well as a command line [cli](#Commandline-Client).
 
 At the moment, the following backend providers are supported:
 
@@ -16,7 +17,10 @@ At the moment, the following backend providers are supported:
 In addition, support for **ZooKeeper**, **Redis**, **Memcache**, **cznic/kv**,
 **bolt** and **tiedot** is planned.
 
-## Usage
+**Note**: gokv is still under heavy development and until we reach a final 1.0.0
+APIs may change with any 0.x release.
+
+## Library Usage
 
 ```golang
 package main
@@ -37,7 +41,7 @@ func main() {
 
     store.Set(ctx, "/a/b/c", "some-value")
 
-    val, _ := store.Get(ctx, "/a/b")
+    val, _ := store.RGet(ctx, "/a/b") // Recursively query /a/b
 
     for _, child := range val.Children {
         prefix := "f"
@@ -67,31 +71,76 @@ $ go install github.com/nethack42/gokv/cmd/gokv
 ```bash
 $ gokv --help
 NAME:
-gokv - GoKV is a generic Key-Value client
+   gokv - A batteries included client to access various Key-Value stores
 
 USAGE:
-gokv [global options] command [command options] [arguments...]
+   gokv [global options] command [command options] [arguments...]
 
 VERSION:
-0.0.0
+   0.2.0
+
+AUTHOR:
+   Patrick Pacher <patrick.pacher@gmail.com>
 
 COMMANDS:
-get      Get a key
-delete   Delete a key
-set      Set a key
-help, h  Shows a list of commands or help for one command
+     get              Get a key
+     delete, del, rm  Delete a key
+     set, put         Set a key
+     move, mv         Move a key or subtree to a differnt location
+     copy, cp         Copy a key or subtree to a new location
+     proxy            Launch HTTP API proxy with integrated WebUI
+     dump             Recursively dump a subtree to file using JSON.
+     restore          Restores a subtree from a JSON file.
+     help, h          Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
---pgp-secret-keyring value  Path to PGP secret keyring used for decryption and signing (default: "/home/alice/.gnupg/secring.gpg")
---pgp-public-keyring value  Path to PGP public keyring used for encryption and signature verification (default: "/home/alice/.gnupg/pubring.gpg")
---memory                    Enable memory Key-Value provider (default: false) [$USE_MEMORY]
---etcd                      Enable etcd Key-Value provider (default: true) [$USE_ETCD]
---etcd-endpoints value      Configure endpoints for etcd provider (default: "http://localhost:4001/") [$ETCD_ENDPOINTS]
---help, -h                  show help (default: false)
---version, -v               print the version (default: false)
+   --pgp-sec-ring value, -K value  Path to PGP secret keyring used for decryption and signing (default: "~/.gnupg/secring.gpg")
+   --pgp-pub-ring value, -k value  Path to PGP public keyring used for encryption and signature verification (default: "~/.gnupg/pubring.gpg")
+   --etcd                          Enable etcd Key-Value provider (default: true) [$USE_ETCD]
+   --etcd-endpoints value          Configure endpoints for etcd provider (default: "http://localhost:4001/") [$ETCD_ENDPOINTS]
+   --memory                        Enable memory Key-Value provider (default: false) [$USE_MEMORY]
+   --json, -j                      Display result as JSON (default: false)
+   --list, -l                      Only display the nodes children as a list (default: false)
+   --tree, -t                      Only display the nodes children as a tree (default: false)
+   --value, -o                     Only display the nodes value (default: false)
+   --help, -h                      show help (default: false)
+   --version, -v                   print the version (default: false)
 ```
 
-#### PGP Examples
+### Advanced Usage
+
+The `gokv` command line client provides some handy features for more complex
+operations including PGP encryption, sub-tree backup & restore and much more.
+
+#### Backup & Restore
+
+Using `gokv backup` and `gokv restore` it is possible to dump and restore complete
+subtrees. 
+
+```bash
+$ gokv dump /coredns/zones/example.com > /tmp/example.com.zone
+```
+
+```bash
+$ gokv restore -f /tmp/example.com.zone /coredns/zones/example.com
+```
+
+Like when using `gokv move` or `gokv copy` it is also possible to move/copy subtrees using backup&restore.
+This comes in handy if you want to move a subtree from one KV provider to another:
+
+```bash
+# Define endpoints within the environment to keep gokv params simple 
+export ETCD_ENDPOINTS="https://etcdnode1:4001"
+export CONSUL_ENDPOINTS="https://consul:2000/"
+
+# Copy /config from etcd to consul
+gokv --etcd dump /config | gokv --consul restore /config
+
+# Remove /config from etcd
+gokv --etcd rm /config
+```
+
+#### Using PGP
 
 The `gokv` cli includes basic PGP support. En/Decryption works but siging/verification
 is not yet implemented. In addition, keyring support is hacky..
@@ -112,9 +161,49 @@ $ gokv get --json --decrypt /alice/credit-card
 }
 ```
 
-Instead of letting gokv decrypt the value, you can also rely on `gpg`:
+If your keyring is password protected, `gokv` will ask you on the terminal.
+
+Instead of letting gokv decrypt the value, you can also rely on `gpg` if more
+advanced options are required.
+
 ```bash
-$ gokv get --value /alice/credit-card | gpg -d
+# Use gpg for encryption
+echo "Some-Message" | gpg -e -r patrick.pacher@gmail.com | base64 | gokv set -f - /key/path
+
+# Use gpg for decryption
+gokv get --value /alice/credit-card | base64 -d | gpg -d
 ```
 
-If your keyring is password protected, `gokv` will ask you on the terminal.
+Note: `gokv` applies base64 encoding to encrypted values.
+
+# Roadmap
+
+The list below is a short summary of the projects roadmap. More information can
+be found in [Issues](https://github.com/nethack42/gokv/issues) and 
+[Milestones](https://github.com/nethack42/gokv/milestone).
+
+**v0.3** (*next*)
+ - [ ] Proxy and WebUI support
+ - [ ] PGP agent support
+ - [ ] Advanced/better error handling in `gokv` cli
+ - [ ] New provider: `redis`
+ - [ ] Interactive mode (readline support in v0.4)
+
+**v0.2** (**active**)
+ - [X] Support for recursive gets
+ - [X] Output types for `gokv` cli: JSON, Value, List, Tree
+ - [ ] New provider: `consul`
+ - [ ] PGP Keyring support
+ - [X] PGP Multi-Receipient encryption
+ - [ ] PGP Signature
+ - [X] Backup Command
+ - [X] Restore Command
+ - [ ] Copy and Move commands
+
+# Changelog
+
+**v0.1** (released 2017-01-08)
+ - Basic PGP support (encrypt/decrypt)
+ - Basic KV operations (Get/Set/Delete)
+ - New Provider: `etcd`
+ - New Provider: `memory`
