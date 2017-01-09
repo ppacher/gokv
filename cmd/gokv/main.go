@@ -42,6 +42,7 @@ var Result interface{}
 func main() {
 	app := cli.App{}
 	app.Name = "gokv"
+	app.EnableShellCompletion = true
 	app.Version = "0.2.0"
 	app.Usage = "A batteries included client to access various Key-Value stores"
 	app.Authors = []*cli.Author{
