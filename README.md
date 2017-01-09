@@ -149,11 +149,25 @@ export ETCD_ENDPOINTS="https://etcdnode1:4001"
 export CONSUL_ENDPOINTS="https://consul:2000/"
 
 # Copy /config from etcd to consul
-gokv --etcd dump /config | gokv --consul restore /config
+gokv --etcd dump /config | gokv --consul restore /app1
 
 # Remove /config from etcd
 gokv --etcd rm /config
 ```
+
+By default, `gokv` operates in `--rel` relative mode. In the example shown above,
+the `dump` command runs with `--rel` enabled and thus, removes the prefix /config
+from all nodes. In addition, `restore` will also run in relative mode and prefix
+each key with /app1.
+
+```
+/config                 ->          /app1
+    |-main.conf         ->             |-main.conf
+    |-example.conf      ->             |-example.conf
+```
+
+You can disable relative mode by passing `--rel=false`. Disabling will cause 
+`dump` to not modify keys and `restore` to not append any prefix.
 
 #### Using PGP
 
@@ -214,6 +228,7 @@ be found in [Issues](https://github.com/nethack42/gokv/issues) and
  - [X] Backup Command
  - [X] Restore Command
  - [ ] Copy and Move commands
+ - [X] Shell Completion (zsh, bash) *thanks to urfave/cli*
 
 # Changelog
 
