@@ -107,6 +107,21 @@ GLOBAL OPTIONS:
    --version, -v                   print the version (default: false)
 ```
 
+### Shell Completion
+
+You can generate bash or zsh completion code by using the flag `--init-completion bash` or `--init-completion zsh`.
+
+To setup for bash:
+
+```bash
+eval "`gokv --init-completion bash`"
+```
+
+Alternatively, you can put the completion code in your `.bashrc` file:
+```bash
+gokv --init-completion bash >> ~/.bashrc
+```
+
 ### Advanced Usage
 
 The `gokv` command line client provides some handy features for more complex
