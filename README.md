@@ -222,6 +222,7 @@ be found in [Issues](https://github.com/nethack42/gokv/issues) and
  - [ ] New provider: `redis`
  - [ ] Interactive mode (readline support in v0.4)
  - [ ] Clipboard support
+ - [ ] Extended passphrase support (env, parameter, external-commands)
 
 **v0.2** (**active**)
  - [X] Support for recursive gets
