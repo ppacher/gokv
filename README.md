@@ -1,7 +1,7 @@
 # gokv
 
 **gokv** provides a generic access layer for various Key-Value databases (including
-**etcd**, **consul**, ...) as well as a batteries-included command line client with support for recursive dumps/backups, PGP encryption/signatures, interactive mode coming soon) and more. Btw, adding support for new KV databases is easy.
+**etcd**, **consul**, ...) as well as a batteries-included command line client with support for recursive dumps/backups, PGP encryption/signatures, interactive mode (*coming soon*) and more. Btw, adding support for new KV databases is easy.
 
 **gokv** is meant to be used for configuration backends or service discovery 
 regardless of the underlying KV provider. It is designed similar to Golang's
