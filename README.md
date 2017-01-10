@@ -302,6 +302,7 @@ be found in [Issues](https://github.com/nethack42/gokv/issues) and
  - [ ] Clipboard support
  - [ ] Extended passphrase support (env, parameter, external-commands)
  - [ ] Pretty-format JSON output
+ - [ ] Output filtering for List/Tree output: `--dirs-only`, `--files-only`
 
 **v0.2** (**active**)
  - [X] Support for recursive gets
