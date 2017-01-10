@@ -317,6 +317,8 @@ be found in [Issues](https://github.com/nethack42/gokv/issues) and
 
 **TODO** (*but not decided when*)
 - [ ] Proxy and WebUI support
+- [ ] Archive support (directly create .zip/.tgz backups)
+- [ ] Backup encryption and on-the-fly decryption during restore
 
 # Changelog
 
