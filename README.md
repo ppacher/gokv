@@ -294,7 +294,6 @@ be found in [Issues](https://github.com/nethack42/gokv/issues) and
 [Milestones](https://github.com/nethack42/gokv/milestone).
 
 **v0.3** (*next*)
- - [ ] Proxy and WebUI support
  - [ ] PGP agent support
  - [ ] Advanced/better error handling in `gokv` cli
  - [ ] New provider: `redis`
@@ -315,6 +314,9 @@ be found in [Issues](https://github.com/nethack42/gokv/issues) and
  - [X] Restore Command
  - [ ] Copy and Move commands
  - [X] Shell Completion (zsh, bash) *thanks to urfave/cli*
+
+**TODO** (*but not decided when*)
+- [ ] Proxy and WebUI support
 
 # Changelog
 
