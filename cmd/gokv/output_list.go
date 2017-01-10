@@ -12,8 +12,10 @@ type listOutput struct{}
 func (out listOutput) Node(n kv.Node) []byte {
 	res := new(bytes.Buffer)
 
+	fmt.Fprintln(res, "/"+n.Key)
+
 	for _, child := range n.Children {
-		fmt.Fprintln(res, "/"+child.Key)
+		res.Write(out.Node(child))
 	}
 
 	return res.Bytes()
