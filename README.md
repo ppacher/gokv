@@ -1,7 +1,7 @@
 # gokv
 
-**gokv** provides a generic access layer for various Key-Value databases including
-**etcd**, **consul** and many more. Adding support for new KV databases is easy.
+**gokv** provides a generic access layer for various Key-Value databases (including
+**etcd**, **consul**, ...) as well as a batteries-included command line client with support for recursive dumps/backups, PGP encryption/signatures, interactive mode coming soon) and more. Btw, adding support for new KV databases is easy.
 
 **gokv** is meant to be used for configuration backends or service discovery 
 regardless of the underlying KV provider. It is designed similar to Golang's
@@ -205,6 +205,10 @@ gokv get --value /alice/credit-card | base64 -d | gpg -d
 
 Note: `gokv` applies base64 encoding to encrypted values.
 
+# Contributing
+
+I will gladly accept Pull-Requests for new providers and bug-fixes! If you are going to modify some of the core APIs, please make sure to also update **all** supported providers so tests won't start failing. Also, good code has tests, so please submit some with your PR! We'll try to keep the average line coverage above 80%. Use `go test -covermode=count` to get line-coverage for each package. 
+
 # Roadmap
 
 The list below is a short summary of the projects roadmap. More information can
@@ -217,6 +221,7 @@ be found in [Issues](https://github.com/nethack42/gokv/issues) and
  - [ ] Advanced/better error handling in `gokv` cli
  - [ ] New provider: `redis`
  - [ ] Interactive mode (readline support in v0.4)
+ - [ ] Clipboard support
 
 **v0.2** (**active**)
  - [X] Support for recursive gets
