@@ -69,3 +69,12 @@ func (w *wrapper) Copy(ctx context.Context, keyOld, keyNew string) error {
 
 	return fmt.Errorf("Copy not supported by provider")
 }
+
+func (w *wrapper) WithPrefix(p string) KV {
+	return &wrapper{
+		Provider: &prefixer{
+			Provider: w,
+			prefix:   p,
+		},
+	}
+}
