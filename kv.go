@@ -66,8 +66,6 @@ type KV interface {
 
 	// FileOps provides some file-like functionality like Copy or Move
 	FileOps
-
-	WithPrefix(string) KV
 }
 
 // RecursiveGetter allows to retrieve nodes recursively
