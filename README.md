@@ -1,7 +1,7 @@
 # gokv
 
-**gokv** provides a generic access layer for various Key-Value databases including
-**etcd**, **consul** and many more. Adding support for new KV databases is easy.
+**gokv** provides a generic access layer for various Key-Value databases (including
+**etcd**, **consul**, ...) as well as a batteries-included command line client with support for recursive dumps/backups, PGP encryption/signatures, interactive mode (*coming soon*) and more. Btw, adding support for new KV databases is easy.
 
 **gokv** is meant to be used for configuration backends or service discovery 
 regardless of the underlying KV provider. It is designed similar to Golang's
@@ -122,6 +122,84 @@ Alternatively, you can put the completion code in your `.bashrc` file:
 gokv --init-completion bash >> ~/.bashrc
 ```
 
+### Output selection
+
+`gokv` supports multile output formats. Available output formats are:
+
+ - JSON: `--json`
+ - Tree: `--tree` displays key-names only
+ - List: `--list` displays key-names only
+ - Value: `--value` only return the value of the node or nothing if it is a directory
+ 
+Support for more formats is planned. 
+
+**Tree**
+
+```
+$ gokv --tree get -R /app1
+└── app1
+   ├── config
+   │  ├── users.json
+   │  └── database.json
+   └── users
+      ├── paz
+      ├── mustermann
+      └── foobar
+```
+
+**List**
+
+```bash
+$ gokv --list get -R /app1
+/app1
+/app1/config
+/app1/config/database.json
+/app1/config/users.json
+/app1/users
+/app1/users/paz
+/app1/users/mustermann
+/app1/users/foobar
+```
+
+**JSON** (*default*)
+
+```bash
+$ gokv --json get -R /app1 | jq # jq is for pretty printing (see roadmap)
+{
+  "key": "app1",
+  "dir": true,
+  "childs": [
+    {
+      "key": "app1/config",
+      "dir": true,
+      "childs": [
+        {
+          "key": "app1/config/database.json"
+        },
+        {
+          "key": "app1/config/users.json"
+        }
+      ]
+    },
+    {
+      "key": "app1/users",
+      "dir": true,
+      "childs": [
+        {
+          "key": "app1/users/paz"
+        },
+        {
+          "key": "app1/users/mustermann"
+        },
+        {
+          "key": "app1/users/foobar"
+        }
+      ]
+    }
+  ]
+}
+```
+
 ### Advanced Usage
 
 The `gokv` command line client provides some handy features for more complex
@@ -205,6 +283,10 @@ gokv get --value /alice/credit-card | base64 -d | gpg -d
 
 Note: `gokv` applies base64 encoding to encrypted values.
 
+# Contributing
+
+I will gladly accept Pull-Requests for new providers and bug-fixes! If you are going to modify some of the core APIs, please make sure to also update **all** supported providers so tests won't start failing. Also, good code has tests, so please submit some with your PR! We'll try to keep the average line coverage above 80%. Use `go test -covermode=count` to get line-coverage for each package. 
+
 # Roadmap
 
 The list below is a short summary of the projects roadmap. More information can
@@ -212,11 +294,14 @@ be found in [Issues](https://github.com/nethack42/gokv/issues) and
 [Milestones](https://github.com/nethack42/gokv/milestone).
 
 **v0.3** (*next*)
- - [ ] Proxy and WebUI support
  - [ ] PGP agent support
  - [ ] Advanced/better error handling in `gokv` cli
  - [ ] New provider: `redis`
  - [ ] Interactive mode (readline support in v0.4)
+ - [ ] Clipboard support
+ - [ ] Extended passphrase support (env, parameter, external-commands)
+ - [ ] Pretty-format JSON output
+ - [ ] Output filtering for List/Tree output: `--dirs-only`, `--files-only`
 
 **v0.2** (**active**)
  - [X] Support for recursive gets
@@ -229,6 +314,11 @@ be found in [Issues](https://github.com/nethack42/gokv/issues) and
  - [X] Restore Command
  - [ ] Copy and Move commands
  - [X] Shell Completion (zsh, bash) *thanks to urfave/cli*
+
+**TODO** (*but not decided when*)
+- [ ] Proxy and WebUI support
+- [ ] Archive support (directly create .zip/.tgz backups)
+- [ ] Backup encryption and on-the-fly decryption during restore
 
 # Changelog
 
